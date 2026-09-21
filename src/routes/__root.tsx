@@ -25,23 +25,18 @@ function NotFound() {
 
 function RootLayout() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
-        <nav className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
+    <div className="flex h-screen flex-col bg-background text-foreground">
+      <header className="shrink-0 border-b">
+        <nav className="flex items-center justify-between gap-4 px-4 py-2.5">
           <Link to="/" className="font-semibold">
             {appConfig.name}
           </Link>
-          <div className="flex gap-4 text-sm">
-            <Link
-              to="/"
-              className="text-muted-foreground hover:text-foreground [&.active]:text-foreground"
-            >
-              Home
-            </Link>
-          </div>
+          <span className="text-xs text-muted-foreground">
+            Images stay on this device · not for diagnostic reporting
+          </span>
         </nav>
       </header>
-      <main className="mx-auto max-w-4xl px-4 py-8">
+      <main className="flex min-h-0 flex-1 flex-col px-4 py-4">
         <Outlet />
       </main>
       {import.meta.env.DEV && (
