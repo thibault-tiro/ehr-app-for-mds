@@ -1,4 +1,4 @@
-# Build your own clinical tool with Claude Code 
+# Build your own clinical tool with Claude Code
 
 This template lets you, a clinician, build and publish your own small web app by talking to
 Claude Code. No programming needed. Score calculators, protocol lookups, checklists, personal
