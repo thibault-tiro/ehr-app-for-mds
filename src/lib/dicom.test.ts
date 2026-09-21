@@ -1,5 +1,7 @@
 import {
   CT_WINDOW_PRESETS,
+  describeNonImages,
+  emptyResultMessage,
   formatDicomDate,
   formatPersonName,
   fromVoiRange,
@@ -7,7 +9,7 @@ import {
   seriesLabel,
   toVoiRange,
 } from './dicom'
-import type { DicomSeries } from './dicom'
+import type { DicomSeries, LoadReport } from './dicom'
 
 describe('patient names', () => {
   // DICOM PS3.5 writes names as Family^Given^Middle^Prefix^Suffix.
@@ -140,5 +142,64 @@ describe('series labels', () => {
 
   test('leaves the number off when the file does not give one', () => {
     expect(seriesLabel(series({ seriesNumber: null }))).toBe('Thorax')
+  })
+})
+
+describe('explaining an empty result', () => {
+  const report = (extra: Partial<LoadReport>): LoadReport => ({
+    series: [],
+    notDicom: 0,
+    notImage: 0,
+    unreadable: 0,
+    notImageModalities: [],
+    ...extra,
+  })
+
+  test('names structured reports, the commonest DICOM with no picture', () => {
+    const message = emptyResultMessage(
+      report({ notImage: 17, notImageModalities: ['SR'] }),
+    )
+    expect(message).toContain('17')
+    expect(message).toContain('structured reports')
+    expect(message).not.toContain('DICOM or IMAGES')
+  })
+
+  test('handles a single report', () => {
+    const message = emptyResultMessage(
+      report({ notImage: 1, notImageModalities: ['SR'] }),
+    )
+    expect(message).toContain('structured reports')
+    expect(message).toContain('no picture')
+  })
+
+  test('falls back to the wrong-folder hint for files that are not DICOM', () => {
+    const message = emptyResultMessage(report({ notDicom: 4 }))
+    expect(message).toContain('DICOM or IMAGES')
+  })
+
+  test('says so when DICOM files could not be read', () => {
+    const message = emptyResultMessage(report({ unreadable: 2 }))
+    expect(message).toContain('could not be read')
+  })
+})
+
+describe('naming non-image DICOM', () => {
+  test('translates the modality codes', () => {
+    expect(describeNonImages(['SR'])).toBe('structured reports')
+    expect(describeNonImages(['KO'])).toBe('key object notes')
+  })
+
+  test('joins several kinds readably', () => {
+    expect(describeNonImages(['SR', 'PR'])).toBe(
+      'structured reports and presentation states',
+    )
+  })
+
+  test('passes through a code it does not know', () => {
+    expect(describeNonImages(['XYZ'])).toBe('XYZ files')
+  })
+
+  test('copes with nothing at all', () => {
+    expect(describeNonImages([])).toBe('files with no picture in them')
   })
 })

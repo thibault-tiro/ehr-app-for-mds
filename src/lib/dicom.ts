@@ -63,6 +63,11 @@ export type LoadReport = {
   notDicom: number
   /** DICOM files that hold no picture, such as a report or the disc index. */
   notImage: number
+  /**
+   * The modalities of those non-image files, e.g. "SR" for a structured
+   * report. Lets the page say what was found instead of just "no images".
+   */
+  notImageModalities: string[]
   /** DICOM files we could not read. */
   unreadable: number
 }
@@ -154,6 +159,48 @@ export function fromVoiRange(range: VoiRange): {
     center: Math.round((range.upper + range.lower) / 2),
     width: Math.round(range.upper - range.lower),
   }
+}
+
+/** What the DICOM modality codes mean, for the kinds that hold no picture. */
+const NON_IMAGE_MODALITIES: Record<string, string> = {
+  SR: 'structured reports',
+  KO: 'key object notes',
+  PR: 'presentation states',
+  GSPS: 'presentation states',
+  DOC: 'embedded documents',
+  SEG: 'segmentations',
+  REG: 'registrations',
+  RTSTRUCT: 'radiotherapy structure sets',
+  RTPLAN: 'radiotherapy plans',
+  RTDOSE: 'radiotherapy dose maps',
+}
+
+/** A plain-language phrase for the non-image files that turned up. */
+export function describeNonImages(modalities: string[]): string {
+  const named = modalities.map(
+    (code) => NON_IMAGE_MODALITIES[code] ?? `${code} files`,
+  )
+  if (named.length === 0) return 'files with no picture in them'
+  if (named.length === 1) return named[0]
+  return `${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}`
+}
+
+/**
+ * What to tell the clinician when nothing could be shown. The useful thing
+ * is *why*: a folder of reports is a different problem from a folder of
+ * holiday photos, and only one of them means they picked the wrong folder.
+ */
+export function emptyResultMessage(report: LoadReport): string {
+  if (report.notImage > 0) {
+    const what = describeNonImages(report.notImageModalities)
+    return report.notImage === 1
+      ? `That is a valid DICOM file, but it holds no picture: it is one of the kinds that carry text and measurements instead (${what}). There is nothing for a viewer to show \u2014 open a folder of scan images instead.`
+      : `Those are ${report.notImage} valid DICOM files, but none of them holds a picture: they are ${what}, which carry text and measurements rather than images. Open a folder of scan images instead.`
+  }
+  if (report.unreadable > 0 && report.notDicom === 0) {
+    return 'Those files look like DICOM but could not be read. They may be damaged, or only partly copied from the disc.'
+  }
+  return 'No DICOM images were found in those files. On a hospital CD the images usually sit in a folder called DICOM or IMAGES, often without a file extension \u2014 try opening the whole disc or folder.'
 }
 
 // ---------------------------------------------------------------------------
@@ -309,6 +356,7 @@ export async function loadFiles(
   let notDicom = 0
   let notImage = 0
   let unreadable = 0
+  const notImageModalities = new Set<string>()
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
@@ -329,6 +377,8 @@ export async function loadFiles(
     if (!rows || !columns) {
       // A report, a disc index or a presentation state: no picture in it.
       notImage++
+      const modality = text(dataSet, Tag.modality)
+      if (modality) notImageModalities.add(modality)
       continue
     }
 
@@ -392,7 +442,13 @@ export async function loadFiles(
         a.key.localeCompare(b.key),
     )
 
-  return { series, notDicom, notImage, unreadable }
+  return {
+    series,
+    notDicom,
+    notImage,
+    unreadable,
+    notImageModalities: Array.from(notImageModalities).sort(),
+  }
 }
 
 // ---------------------------------------------------------------------------

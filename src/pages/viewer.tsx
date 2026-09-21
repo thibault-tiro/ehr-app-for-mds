@@ -25,6 +25,7 @@ import {
   CT_WINDOW_PRESETS,
   type DicomSeries,
   type LoadReport,
+  emptyResultMessage,
   filesFromDrop,
   forgetLoadedFiles,
   formatDicomDate,
@@ -87,11 +88,7 @@ export function ViewerPage() {
       if (result.series.length === 0) {
         setSelectedKey(null)
         setPhase('empty')
-        setMessage(
-          files.length === 1
-            ? 'That file does not contain a DICOM image. On a hospital CD the images are usually in a folder called DICOM or IMAGES — try opening the whole disc or folder instead.'
-            : 'No DICOM images were found in those files. On a hospital CD the images usually sit in a folder called DICOM or IMAGES, often without a file extension — try opening the whole disc or folder.',
-        )
+        setMessage(emptyResultMessage(result))
         return
       }
 
